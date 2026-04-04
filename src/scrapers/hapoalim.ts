@@ -1,6 +1,6 @@
 import moment from 'moment';
 import { type Page } from 'puppeteer';
-import { v4 as uuid4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { getDebug } from '../helpers/debug';
 import { fetchGetWithinPage, fetchPostWithinPage } from '../helpers/fetch';
 import { waitForRedirect } from '../helpers/navigation';
@@ -139,7 +139,7 @@ async function fetchPoalimXSRFWithinPage(
     headers['X-XSRF-TOKEN'] = XSRFCookie.value;
   }
   headers.pageUuid = pageUuid;
-  headers.uuid = uuid4();
+  headers.uuid = randomUUID();
   headers['Content-Type'] = 'application/json;charset=UTF-8';
   return fetchPostWithinPage<FetchedAccountTransactionsData>(page, url, [], headers);
 }
