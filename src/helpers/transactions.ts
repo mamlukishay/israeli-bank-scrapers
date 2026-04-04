@@ -35,7 +35,7 @@ export function fixInstallments(txns: Transaction[]): Transaction[] {
 }
 
 export function sortTransactionsByDate(txns: Transaction[]) {
-  return [...txns].sort((a, b) => a.date.localeCompare(b.date));
+  return [...txns].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 
 export function filterOldTransactions(txns: Transaction[], startMoment: Moment, combineInstallments: boolean) {
