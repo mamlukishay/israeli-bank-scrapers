@@ -61,9 +61,7 @@ function getPossibleLoginResults(page: Page): PossibleLoginResults {
 
 async function getAccountID(page: Page): Promise<string> {
   // Single-portfolio accounts show the ID directly; multi-portfolio accounts use a dropdown
-  const selector = (await page.$(ACCOUNT_ID_SELECTOR_SINGLE))
-    ? ACCOUNT_ID_SELECTOR_SINGLE
-    : ACCOUNT_ID_SELECTOR_MULTI;
+  const selector = (await page.$(ACCOUNT_ID_SELECTOR_SINGLE)) ? ACCOUNT_ID_SELECTOR_SINGLE : ACCOUNT_ID_SELECTOR_MULTI;
 
   try {
     return await page.$eval(selector, (element: Element) => element.textContent as string);
