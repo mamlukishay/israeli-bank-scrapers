@@ -20,7 +20,8 @@ const INVALID_DETAILS_SELECTOR = '.ui-dialog-buttons';
 const CHANGE_PASSWORD_OLD_PASS = 'input#ef_req_parameter_old_credential';
 const BASE_WELCOME_URL = `${BASE_URL}main/home`;
 
-const ACCOUNT_ID_SELECTOR = 'span.portfolio-value';
+const ACCOUNT_ID_SELECTOR_SINGLE = 'span.portfolio-value';
+const ACCOUNT_ID_SELECTOR_MULTI = 'form[name="formPortfolioSelect"] .selected-item-top';
 const ACCOUNT_DETAILS_SELECTOR = '.account-details';
 const DATE_FORMAT = 'DD/MM/YYYY';
 
@@ -59,17 +60,16 @@ function getPossibleLoginResults(page: Page): PossibleLoginResults {
 }
 
 async function getAccountID(page: Page): Promise<string> {
-  try {
-    const selectedSnifAccount = await page.$eval(ACCOUNT_ID_SELECTOR, (element: Element) => {
-      return element.textContent as string;
-    });
+  // Single-portfolio accounts show the ID directly; multi-portfolio accounts use a dropdown
+  const selector = (await page.$(ACCOUNT_ID_SELECTOR_SINGLE))
+    ? ACCOUNT_ID_SELECTOR_SINGLE
+    : ACCOUNT_ID_SELECTOR_MULTI;
 
-    return selectedSnifAccount;
+  try {
+    return await page.$eval(selector, (element: Element) => element.textContent as string);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Failed to retrieve account ID. Possible outdated selector '${ACCOUNT_ID_SELECTOR}: ${errorMessage}`,
-    );
+    throw new Error(`Failed to retrieve account ID. Possible outdated selector '${selector}': ${errorMessage}`);
   }
 }
 
@@ -200,7 +200,10 @@ async function fetchAccountData(
 async function fetchAccounts(page: Page, startDate: Moment, options?: ScraperOptions): Promise<TransactionsAccount[]> {
   const accounts: TransactionsAccount[] = [];
 
-  // TODO: get more accounts. Not sure is supported.
+  // TODO: only the currently selected portfolio is scraped. For multi-portfolio accounts,
+  // this should iterate over the options in form[name="formPortfolioSelect"], select each one,
+  // and call fetchAccountData for each. The data model supports it — ScraperScrapingResult
+  // returns TransactionsAccount[], each with its own accountNumber and txns[].
   const accountID = await getAccountID(page);
   const accountData = await fetchAccountData(page, startDate, accountID, options);
   accounts.push(accountData);
