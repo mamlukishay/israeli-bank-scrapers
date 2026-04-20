@@ -166,8 +166,9 @@ async function searchByDates(page: Page, startDate: Moment) {
 
   // The calendar opens on the current month. Navigate back to the target month
   // by clicking the "previous month" button once per month of difference.
+  // Clamped to 0 so a future startDate stays on the current month rather than trying to navigate forward.
   const today = moment();
-  const monthsToGoBack = (today.year() - startDate.year()) * 12 + (today.month() - startDate.month());
+  const monthsToGoBack = Math.max(0, (today.year() - startDate.year()) * 12 + (today.month() - startDate.month()));
   for (let i = 0; i < monthsToGoBack; i += 1) {
     const prevMonthSelector = '.datepicker-month-prev.enabled';
     await waitUntilElementFound(page, prevMonthSelector, true);
