@@ -20,7 +20,7 @@ const INVALID_DETAILS_SELECTOR = '.ui-dialog-buttons';
 const CHANGE_PASSWORD_OLD_PASS = 'input#ef_req_parameter_old_credential';
 const BASE_WELCOME_URL = `${BASE_URL}main/home`;
 
-const ACCOUNT_ID_SELECTOR = 'span.portfolio-value[ng-if="mainController.data.portfolioList.length === 1"]';
+const ACCOUNT_ID_SELECTOR = 'span.portfolio-value';
 const ACCOUNT_DETAILS_SELECTOR = '.account-details';
 const DATE_FORMAT = 'DD/MM/YYYY';
 
@@ -156,65 +156,28 @@ async function getAccountTransactions(page: Page, options?: ScraperOptions): Pro
 
 // Manipulate the calendar drop down to choose the txs start date.
 async function searchByDates(page: Page, startDate: Moment) {
-  // Get the day number from startDate. 1-31 (usually 1)
-  const startDateDay = startDate.format('D');
-  const startDateMonth = startDate.format('M');
-  const startDateYear = startDate.format('Y');
+  // Open the "from date" calendar picker
+  const datePickerButton = 'a.datepicker-button.input-group-addon';
+  await waitUntilElementFound(page, datePickerButton, true);
+  await clickButton(page, datePickerButton);
 
-  // Open the calendar date picker
-  const dateFromPick =
-    'div.date-options-cell:nth-child(7) > date-picker:nth-child(1) > div:nth-child(1) > span:nth-child(2)';
-  await waitUntilElementFound(page, dateFromPick, true);
-  await clickButton(page, dateFromPick);
+  // Wait for the calendar popup to appear
+  await waitUntilElementFound(page, '.datepicker-calendar', true);
 
-  // Wait until first day appear.
-  await waitUntilElementFound(page, '.pmu-days > div:nth-child(1)', true);
-
-  // Open Months options.
-  const monthFromPick = '.pmu-month';
-  await waitUntilElementFound(page, monthFromPick, true);
-  await clickButton(page, monthFromPick);
-  await waitUntilElementFound(page, '.pmu-months > div:nth-child(1)', true);
-
-  // Open Year options.
-  // Use same selector... Yahav knows why...
-  await waitUntilElementFound(page, monthFromPick, true);
-  await clickButton(page, monthFromPick);
-  await waitUntilElementFound(page, '.pmu-years > div:nth-child(1)', true);
-
-  // Select year from a 12 year grid.
-  for (let i = 1; i < 13; i += 1) {
-    const selector = `.pmu-years > div:nth-child(${i})`;
-    const year = await page.$eval(selector, y => {
-      return (y as HTMLElement).innerText;
-    });
-    if (startDateYear === year) {
-      await clickButton(page, selector);
-      break;
-    }
+  // The calendar opens on the current month. Navigate back to the target month
+  // by clicking the "previous month" button once per month of difference.
+  const today = moment();
+  const monthsToGoBack = (today.year() - startDate.year()) * 12 + (today.month() - startDate.month());
+  for (let i = 0; i < monthsToGoBack; i += 1) {
+    const prevMonthSelector = '.datepicker-month-prev.enabled';
+    await waitUntilElementFound(page, prevMonthSelector, true);
+    await clickButton(page, prevMonthSelector);
   }
 
-  // Select Month.
-  await waitUntilElementFound(page, '.pmu-months > div:nth-child(1)', true);
-  // The first element (1) is January.
-  const monthSelector = `.pmu-months > div:nth-child(${startDateMonth})`;
-  await clickButton(page, monthSelector);
-
-  // Select Day.
-  // The calendar grid shows 7 days and 6 weeks = 42 days.
-  // In theory, the first day of the month will be in the first row.
-  // Let's check everything just in case...
-  for (let i = 1; i < 42; i += 1) {
-    const selector = `.pmu-days > div:nth-child(${i})`;
-    const day = await page.$eval(selector, d => {
-      return (d as HTMLElement).innerText;
-    });
-
-    if (startDateDay === day) {
-      await clickButton(page, selector);
-      break;
-    }
-  }
+  // Click the target day — each day cell carries its day number in data-value
+  const daySelector = `td.day.selectable[data-value="${startDate.date()}"]`;
+  await waitUntilElementFound(page, daySelector, true);
+  await clickButton(page, daySelector);
 }
 
 async function fetchAccountData(
