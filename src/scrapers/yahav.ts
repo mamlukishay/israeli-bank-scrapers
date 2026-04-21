@@ -60,11 +60,17 @@ function getPossibleLoginResults(page: Page): PossibleLoginResults {
 }
 
 async function getAccountID(page: Page): Promise<string> {
-  // Single-portfolio accounts show the ID directly; multi-portfolio accounts use a dropdown
+  // Wait for whichever selector appears first — single-portfolio vs multi-portfolio accounts
+  await Promise.any([
+    page.waitForSelector(ACCOUNT_ID_SELECTOR_SINGLE, { timeout: 10000 }),
+    page.waitForSelector(ACCOUNT_ID_SELECTOR_MULTI, { timeout: 10000 }),
+  ]).catch(() => null);
+
   const selector = (await page.$(ACCOUNT_ID_SELECTOR_SINGLE)) ? ACCOUNT_ID_SELECTOR_SINGLE : ACCOUNT_ID_SELECTOR_MULTI;
 
   try {
-    return await page.$eval(selector, (element: Element) => element.textContent as string);
+    const text = await page.$eval(selector, (element: Element) => element.textContent ?? '');
+    return text.trim();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to retrieve account ID. Possible outdated selector '${selector}': ${errorMessage}`);
@@ -164,18 +170,20 @@ async function searchByDates(page: Page, startDate: Moment) {
   // Wait for the calendar popup to appear
   await waitUntilElementFound(page, `${FROM_PICKER} .datepicker-calendar`, true);
 
-  // The calendar opens on the current month. Navigate back to the target month
-  // by clicking the "previous month" button once per month of difference.
-  const today = moment();
-  const monthsToGoBack = (today.year() - startDate.year()) * 12 + (today.month() - startDate.month());
+  // Read the displayed month/year from the calendar header — the picker may open on the
+  // previously-selected date's month rather than the current month.
+  const displayedText = await page.$eval(`${FROM_PICKER} .datepicker-month`, el => el.textContent?.trim() ?? '');
+  const displayedMoment = moment(displayedText, 'MMMM YYYY');
+  const monthsToGoBack =
+    (displayedMoment.year() - startDate.year()) * 12 + (displayedMoment.month() - startDate.month());
   for (let i = 0; i < monthsToGoBack; i += 1) {
     const prevMonthSelector = `${FROM_PICKER} .datepicker-month-prev.enabled`;
     await waitUntilElementFound(page, prevMonthSelector, true);
     await clickButton(page, prevMonthSelector);
   }
 
-  // Click the target day — each day cell carries its day number in data-value
-  const daySelector = `${FROM_PICKER} .datepicker-calendar td.day.selectable[data-value="${startDate.date()}"]`;
+  // Click the target day — scoped to current-month cells to avoid adjacent-month cells with the same day number
+  const daySelector = `${FROM_PICKER} .datepicker-calendar td.day.selectable:not(.other-month)[data-value="${startDate.date()}"]`;
   await waitUntilElementFound(page, daySelector, true);
   await clickButton(page, daySelector);
 }
