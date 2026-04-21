@@ -152,29 +152,30 @@ async function getAccountTransactions(page: Page, options?: ScraperOptions): Pro
   return convertTransactions(txns, options);
 }
 
+// All datepicker selectors are scoped to the "from date" control to avoid ambiguity with the "to date" picker.
+const FROM_PICKER = 'date-picker-access[btn-label="from"]';
+
 // Manipulate the calendar drop down to choose the txs start date.
 async function searchByDates(page: Page, startDate: Moment) {
   // Open the "from date" calendar picker
-  const datePickerButton = 'a.datepicker-button.input-group-addon';
-  await waitUntilElementFound(page, datePickerButton, true);
-  await clickButton(page, datePickerButton);
+  await waitUntilElementFound(page, `${FROM_PICKER} a.datepicker-button`, true);
+  await clickButton(page, `${FROM_PICKER} a.datepicker-button`);
 
   // Wait for the calendar popup to appear
-  await waitUntilElementFound(page, '.datepicker-calendar', true);
+  await waitUntilElementFound(page, `${FROM_PICKER} .datepicker-calendar`, true);
 
   // The calendar opens on the current month. Navigate back to the target month
   // by clicking the "previous month" button once per month of difference.
-  // Clamped to 0 so a future startDate stays on the current month rather than trying to navigate forward.
   const today = moment();
-  const monthsToGoBack = Math.max(0, (today.year() - startDate.year()) * 12 + (today.month() - startDate.month()));
+  const monthsToGoBack = (today.year() - startDate.year()) * 12 + (today.month() - startDate.month());
   for (let i = 0; i < monthsToGoBack; i += 1) {
-    const prevMonthSelector = '.datepicker-month-prev.enabled';
+    const prevMonthSelector = `${FROM_PICKER} .datepicker-month-prev.enabled`;
     await waitUntilElementFound(page, prevMonthSelector, true);
     await clickButton(page, prevMonthSelector);
   }
 
   // Click the target day — each day cell carries its day number in data-value
-  const daySelector = `td.day.selectable[data-value="${startDate.date()}"]`;
+  const daySelector = `${FROM_PICKER} .datepicker-calendar td.day.selectable[data-value="${startDate.date()}"]`;
   await waitUntilElementFound(page, daySelector, true);
   await clickButton(page, daySelector);
 }
@@ -260,7 +261,7 @@ class YahavScraper extends BaseScraperWithBrowser<ScraperSpecificCredentials> {
 
     const defaultStartMoment = moment().subtract(3, 'months').add(1, 'day');
     const startDate = this.options.startDate || defaultStartMoment.toDate();
-    const startMoment = moment.max(defaultStartMoment, moment(startDate));
+    const startMoment = moment.min(moment.max(defaultStartMoment, moment(startDate)), moment());
 
     const accounts = await fetchAccounts(this.page, startMoment, this.options);
 
