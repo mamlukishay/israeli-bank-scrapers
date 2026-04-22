@@ -170,10 +170,10 @@ async function searchByDates(page: Page, startDate: Moment) {
   // Wait for the calendar popup to appear
   await waitUntilElementFound(page, `${FROM_PICKER} .datepicker-calendar`, true);
 
-  // Read the displayed month/year from the calendar header — the picker may open on the
-  // previously-selected date's month rather than the current month.
-  const displayedText = await page.$eval(`${FROM_PICKER} .datepicker-month`, el => el.textContent?.trim() ?? '');
-  const displayedMoment = moment(displayedText, 'MMMM YYYY');
+  // Read the input value (set by ng-value/textToDateFilter, always DD/MM/YYYY) to determine which
+  // month the calendar opened on — avoids parsing the header text which renders in the account's locale.
+  const inputValue = await page.$eval(`${FROM_PICKER} .date-picker-input`, el => (el as HTMLInputElement).value);
+  const displayedMoment = moment(inputValue, 'DD/MM/YYYY');
   const monthsToGoBack =
     (displayedMoment.year() - startDate.year()) * 12 + (displayedMoment.month() - startDate.month());
   for (let i = 0; i < monthsToGoBack; i += 1) {
